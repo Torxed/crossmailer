@@ -1,12 +1,5 @@
 from os import popen
-from time import strftime
-import sys
-
-def log(s, src=None):
-	if not src:
-		src = 'CORE'
-	sys.stdout.write(strftime('%Y-%m-%d %H:%M:%S - [' + src + '] ' + s + '\n'))
-	sys.stdout.flush()
+from logger import *
 
 def refstr(s):
 	return s.strip(" \t:,\r\n\"'")
