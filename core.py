@@ -8,7 +8,7 @@ from socket import *
 from helpers import *
 from random import randint
 
-from SMTPapi import parse as smtp_parse
+from SMTPapi import SMTP as smtplib
 from IMAPapi import IMAP as imaplib
 from SMTPapi import hello as smtp_hello
 from IMAPapi import hello as imap_hello
@@ -48,9 +48,7 @@ class sender(Thread):
 	def run(self):
 		while 1:
 			if self.writable():
-				logout = str([self.buffer[self.bufferpos].replace('\r\n','')])
-				if len(logout) >= 45:
-					logout = logout[:45] + '...'
+				logout = str([self.buffer[self.bufferpos]])
 				log('{OUT} ' + logout, self.source)
 				self.s(self.buffer[self.bufferpos])
 				self.bufferpos += 1
@@ -77,7 +75,7 @@ class SOCK(Thread, asyncore.dispatcher):
 			## Only add a parser if theres a client socket present.
 			## There's no need to start a parser for a binded socket.
 			if 'PARSER' in self.conf:
-				self.parser = self.conf['PARSER']()
+				self.parser = self.conf['PARSER'](self.sender.send)
 			else:
 				self.parser = None
 
@@ -154,15 +152,17 @@ class SOCK(Thread, asyncore.dispatcher):
 		#self.is_writable = False
 
 	def run(self):
+		lastmail = time()
 		while not self.exit:
 			if len(self.inbuffer) > 0:
 				self.parse()
 			sleep(0.01)
-		self.close()
+			if time() - lastmail > 60:
+				mailboxes[0]['mails'][len(mailboxes[0]['mails'])] = {'flags' : ['unseen'], 'recieved' : time()}
 
 
 imap = SOCK(config={'NAME' : 'IMAP', 'SERVER' : '', 'PORT' : 143, 'PARSER' : imaplib, 'INIT' : imap_hello})
-#smtp = SOCK(config={'NAME' : 'SMTP', 'SERVER' : '', 'PORT' : 25, 'PARSER' : smtp_parse, 'INIT' : smtp_hello})
+smtp = SOCK(config={'NAME' : 'SMTP', 'SERVER' : '', 'PORT' : 25, 'PARSER' : smtplib, 'INIT' : smtp_hello})
 
 l = looper()
 try:
