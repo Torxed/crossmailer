@@ -3,6 +3,7 @@ from logger import *
 from mailboxes import *
 from base64 import b64encode as enc
 from base64 import b64decode as dec
+from time import time
 
 class SMTP(Thread):
 	def __init__(self, sender):
@@ -18,6 +19,22 @@ class SMTP(Thread):
 		self.recievingmaildata = None
 
 		self.start()
+
+	def mail(self, _from, to, data):
+		if _from[-11:] == '@hvornum.se':
+			if self.user + '@hvornum.se' == _from:
+				if to[-11:] == '@hvornum.se':
+					toaccount, domain = to.split('@')
+					if toaccount in accounts:
+						mails = mailboxes[accounts[toaccount]['mailboxes']['inbox']]['mails']
+						mails[len(mails)] = {'flags' : ['unseen'], 'recieved' : time(), 'from' : _from, 'msg' : data}
+						log('Stored mail internally to ' + to, 'SMTP')
+				else:
+					log('Sending extermal mail to: ' + to, 'SMTP')
+			else:
+				return False
+		else:
+			return False
 
 	def parse(self, data):
 		ret = ''
@@ -38,6 +55,7 @@ class SMTP(Thread):
 						self.recievingmaildata['data'] = ''
 					self.recievingmaildata['data'] += line + '\r\n'
 					if self.recievingmaildata['data'][-5:] == '\r\n.\r\n':
+						self.mail(self.recievingmaildata['from'], self.recievingmaildata['to'], self.recievingmaildata['data'])
 						ret += '250 OK: queued as 1\r\n'
 						self.recievingmaildata = None
 			elif self.authed == 0:
@@ -58,7 +76,7 @@ class SMTP(Thread):
 					ret += '250-AUTH LOGIN\r\n' # More login options: PLAIN DIGEST-MD5 GSSAPI
 					ret += '250 ENHANCEDSTATUSCODES\r\n'
 				elif lline[:4] == 'quit':
-					ret += '221 Ok bye bye!\r\n'
+					ret += '221 Bye\r\n'
 				elif lline[:4] == 'auth':
 					ret += '334 ' + enc('Username:') + '\r\n'
 					self.authed = 0

@@ -126,14 +126,24 @@ class IMAP(Thread):
 					command, params, folder = command.split(' ',2)
 					params = refstr(params)
 					folder = refstr(folder)
-					if folder == 'inbox*':
-						ret += '* LSUB () "." INBOX\r\n'
+					if folder in accounts[self.user]['mailboxes']:
+						ret += '* LSUB () "/" "' + folder + '"\r\n'
+						ret += num + ' OK LSUB completed\r\n'
+					elif folder in ('*', '%'):
+						for mailbox in accounts[self.user]['mailboxes']:
+							ret += '* LSUB (\\Noselect) "/" "' + mailbox + '"\r\n'
+						ret += num + ' OK LSUB completed\r\n'
+					elif folder == 'inbox*':
+						ret += '* LSUB () "/" "INBOX"\r\n'
 						ret += num + ' OK LSUB completed\r\n'
 					elif folder == 'shared*':
-						ret += '* LSUB () "." Shared\r\n'
+						ret += '* LSUB () "/" "Shared"\r\n'
+						ret += num + ' OK LSUB completed\r\n'
+					elif folder == 'drafts':
+						ret += '* LSUB () "/" "Drafts"\r\n'
 						ret += num + ' OK LSUB completed\r\n'
 					else:
-						ret += num + ' NO This folder is not here\r\n'
+						ret += num + ' NO The folder "' + folder + '" is not here\r\n'
 
 				elif command[:3] == 'uid':
 					if self.mailbox == None:
@@ -169,11 +179,23 @@ class IMAP(Thread):
 						ret += num + ' OK UID FETCH completed\r\n'
 
 				elif command[:4] == 'list':
+					"""
+						IMAPv4 list returns:
+						* LIST (Attributes) "Delimiter" "Mailbox name/path"
+						<cmd ID> [OK|NO] LIST completed
+					"""
+
 					command, params, folder = command.split(' ',2)
 					params = refstr(params)
 					folder = refstr(folder)
+					if folder == '':
+						## Microsoft Outlook 2013 doesn't SELECT a folder before listing.
+						## Also, it doens't tell which folder to list, instead it just 
+						## says LIST "" "" which is the equivalant of INBOX??
+						ret += '* LIST () "/" ""\r\n'
+						ret += num + ' OK LIST completed\r\n'
 
-					if folder in accounts[self.user]['mailboxes']:
+					elif folder in accounts[self.user]['mailboxes']:
 						ret += '* LIST () "/" ""\r\n'
 						ret += num + ' OK LIST completed\r\n'
 					else:
