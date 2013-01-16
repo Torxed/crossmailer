@@ -9,9 +9,11 @@ from helpers import *
 from random import randint
 
 from SMTPapi import parse as smtp_parse
-from IMAPapi import parse as imap_parse
+from IMAPapi import IMAP as imaplib
 from SMTPapi import hello as smtp_hello
 from IMAPapi import hello as imap_hello
+
+from mailboxes import *
 
 from logger import *
 
@@ -46,7 +48,10 @@ class sender(Thread):
 	def run(self):
 		while 1:
 			if self.writable():
-				log('{OUT} ' + str([self.buffer[self.bufferpos]]), self.source)
+				logout = str([self.buffer[self.bufferpos].replace('\r\n','')])
+				if len(logout) >= 45:
+					logout = logout[:45] + '...'
+				log('{OUT} ' + logout, self.source)
 				self.s(self.buffer[self.bufferpos])
 				self.bufferpos += 1
 
@@ -68,6 +73,14 @@ class SOCK(Thread, asyncore.dispatcher):
 		if _s:
 			asyncore.dispatcher.__init__(self, _s)
 			self.sender = sender(self.send, self.conf['NAME'])
+
+			## Only add a parser if theres a client socket present.
+			## There's no need to start a parser for a binded socket.
+			if 'PARSER' in self.conf:
+				self.parser = self.conf['PARSER']()
+			else:
+				self.parser = None
+
 			if 'INIT' in self.conf:
 				self.sender.send(self.conf['INIT']() + '\r\n')
 		else:
@@ -86,8 +99,8 @@ class SOCK(Thread, asyncore.dispatcher):
 
 	def parse(self):
 		self.lockedbuffer = True
-		if 'PARSER' in self.conf:
-			r = self.conf['PARSER'](self.inbuffer)
+		if self.parser:
+			r = self.parser.parse(self.inbuffer)
 			if r not in (True, False, None):
 				self.sender.send(r)
 			else:
@@ -148,8 +161,8 @@ class SOCK(Thread, asyncore.dispatcher):
 		self.close()
 
 
-imap = SOCK(config={'NAME' : 'IMAP', 'SERVER' : '', 'PORT' : 143, 'PARSER' : imap_parse, 'INIT' : imap_hello})
-smtp = SOCK(config={'NAME' : 'SMTP', 'SERVER' : '', 'PORT' : 25, 'PARSER' : smtp_parse, 'INIT' : smtp_hello})
+imap = SOCK(config={'NAME' : 'IMAP', 'SERVER' : '', 'PORT' : 143, 'PARSER' : imaplib, 'INIT' : imap_hello})
+#smtp = SOCK(config={'NAME' : 'SMTP', 'SERVER' : '', 'PORT' : 25, 'PARSER' : smtp_parse, 'INIT' : smtp_hello})
 
 l = looper()
 try:
