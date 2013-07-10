@@ -1,4 +1,4 @@
 crossmailer
 ===========
 
-Tiny, cross platform, IMAP/SMTP server
+Is being replaced by SlimSMTP and SlimIMAP for <inset reasons>.
